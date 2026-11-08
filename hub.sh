@@ -18,7 +18,14 @@ running "$port" && actions=("Open in browser" "Restart" "Stop")
 actions+=("Open folder in terminal" "Open on GitHub")
 act=$(pick "$name" "${actions[@]}") || exit 0
 
+# dev servers started outside Hub (wrong port) that Next.js would refuse to duplicate
+stray() { for p in $(pgrep -f 'next'); do [[ $(readlink /proc/$p/cwd) == "$path" ]] && echo "$p"; done; }
+
 launch() {
+  if [[ $cmd == *next* || $cmd == "npm run dev"* ]] && [[ -n $(stray) ]]; then
+    [[ $(pick "$name already running elsewhere" "Stop it and launch" "Cancel") == Stop* ]] || exit 0
+    kill $(stray); sleep 1
+  fi
   if [[ -n $inst && $dir != "" && ! -d $path/node_modules && $inst == npm* ]]; then
     [[ $(pick "Dependencies missing" "Install and launch" "Cancel") == Install* ]] || exit 0
     cmd="$inst && $cmd"
